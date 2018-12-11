@@ -73,7 +73,7 @@ func (th *txtHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	db, err := geoip2.Open("/usr/local/share/GeoIP/GeoLite2-City.mmdb")
+	db, err := geoip2.Open("/var/lib/GeoIP/GeoLite2-City.mmdb")
 	if err != nil {
 		log.Fatal(err)
 	}
