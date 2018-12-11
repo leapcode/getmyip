@@ -1,4 +1,11 @@
-Get GeoIP City database
+Geolocation
+=======================
+This is a simple geolocation service.
+
+It provides the remote ip (via X-Forwarded-For header, if present), country code, city, and geographical coordinates.
+Information is provided in plain text format, under ``/``, and in json, under ``/json``.
+
+Prerequisites
 -----------------------
 
 You can use ``geoipupdate`` to download MaxMind's City database::
