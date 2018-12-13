@@ -1,0 +1,8 @@
+Get status
+-------------------------
+govendor status
+
+Get updates
+-------------------------
+govendor update +external
+

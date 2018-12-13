@@ -1,0 +1,61 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "ghXMRHH7SQBQr28kX4LYXSY2P1o=",
+			"path": "github.com/StefanSchroeder/Golang-Ellipsoid/ellipsoid",
+			"revision": "81cf328d8d0d4b9884e2043fc621ace6feb04137",
+			"revisionTime": "2018-11-20T08:56:57Z"
+		},
+		{
+			"checksumSHA1": "Q58NfGP1V4B6tygDQf2/vLZYcpM=",
+			"path": "github.com/dropbox/godropbox/errors",
+			"revision": "31879d3884b90dd94c44c85c0e4f1aff3bbb90e2",
+			"revisionTime": "2018-05-12T21:01:57Z"
+		},
+		{
+			"checksumSHA1": "zYzVdjUkhLQtboshgeY9BV/JUmI=",
+			"path": "github.com/hongshibao/go-algo",
+			"revision": "b1aaa26798b69e1d4cc94d1b2a1bf75ce28f58e5",
+			"revisionTime": "2016-05-21T17:18:29Z"
+		},
+		{
+			"checksumSHA1": "XMJPVPc9JG/LozjklWYErq+3vJ4=",
+			"path": "github.com/hongshibao/go-kdtree",
+			"revision": "0de4e8305acf256954a72e9244d3793b3d34198a",
+			"revisionTime": "2018-05-03T06:15:02Z"
+		},
+		{
+			"checksumSHA1": "GSadhwjiMi8zISYoyC1arYREbKE=",
+			"path": "github.com/oschwald/geoip2-golang",
+			"revision": "96f33b8f2d6434e8fc2f3cf751084acb5153cc80",
+			"revisionTime": "2018-10-14T22:14:48Z"
+		},
+		{
+			"checksumSHA1": "a1WxG0wMDGFnjojQghwu1i1SDhk=",
+			"path": "github.com/oschwald/maxminddb-golang",
+			"revision": "ed835b22606182ff576f244643e52b25b7d6c4e7",
+			"revisionTime": "2018-10-14T22:18:51Z"
+		},
+		{
+			"checksumSHA1": "pwY8/DNn2rh41R7RtKFrIYX1Xpc=",
+			"path": "github.com/tidwall/cities",
+			"revision": "bc2818f2af19c52d0a59c66a24a6cb0e6f06e3d8",
+			"revisionTime": "2018-07-28T21:17:28Z"
+		},
+		{
+			"checksumSHA1": "TG/fajyvSz7H6KhJu8ehtJC/+Bc=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "d8e400bc7db4870d786864138af681469693d18c",
+			"revisionTime": "2018-03-19T15:24:36Z"
+		},
+		{
+			"checksumSHA1": "Dfz4tGItokMvHZENCsBmPPB8FGQ=",
+			"path": "golang.org/x/sys/windows",
+			"revision": "d8e400bc7db4870d786864138af681469693d18c",
+			"revisionTime": "2018-03-19T15:24:36Z"
+		}
+	],
+	"rootPath": "0xacab.org/kali/getmyip"
+}
