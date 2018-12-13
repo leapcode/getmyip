@@ -56,7 +56,7 @@ type geodb struct {
 	db          *geoip2.Reader
 	Gateways    []gateway
 	GatewayTree *kdtree.KDTree
-	GatewayMap  map[[3]float64]gateway
+	GatewayMap  map[[3]float64][]gateway
 	earth       *ellipsoid.Ellipsoid
 }
 
@@ -66,16 +66,33 @@ func (g *geodb) getPointForLocation(lat float64, lon float64) *EuclideanPoint {
 	return p
 }
 
-func (g *geodb) getClosestGateway(lat float64, lon float64) gateway {
+func (g *geodb) sortGateways(lat float64, lon float64) []string {
+    ret := make([]string, 0)
 	t := g.getPointForLocation(lat, lon)
-	nn := g.GatewayTree.KNN(t, 1)[0]
-	p := [3]float64{nn.GetValue(0), nn.GetValue(1), nn.GetValue(2)}
-	closestGateway := g.GatewayMap[p]
-	return closestGateway
+	nn := g.GatewayTree.KNN(t, len(g.Gateways))
+    for i:= 0; i<len(nn); i++ {
+        p := [3]float64{nn[i].GetValue(0), nn[i].GetValue(1), nn[i].GetValue(2)}
+        cityGateways := g.GatewayMap[p]
+        for _, gw := range cityGateways {
+            if !stringInSlice(gw.Host, ret) {
+                ret = append(ret, gw.Host)
+            }
+        }
+    }
+    return ret
+}
+
+func stringInSlice(a string, list[]string) bool {
+    for _, b := range list {
+        if b == a {
+            return true
+        }
+    }
+    return false
 }
 
 func (g *geodb) geolocateGateways(b *bonafide) {
-	g.GatewayMap = make(map[[3]float64]gateway)
+	g.GatewayMap = make(map[[3]float64][]gateway)
 	gatewayPoints := make([]kdtree.Point, 0)
 
 	for i := 0; i < len(b.eip.Gateways); i++ {
@@ -89,7 +106,7 @@ func (g *geodb) geolocateGateways(b *bonafide) {
 		gatewayPoints = append(gatewayPoints, *p)
 		var i [3]float64
 		copy(i[:], p.Vec)
-		g.GatewayMap[i] = gw
+		g.GatewayMap[i] = append(g.GatewayMap[i], gw)
 	}
 	g.Gateways = b.eip.Gateways
 	g.GatewayTree = kdtree.NewKDTree(gatewayPoints)
@@ -110,8 +127,7 @@ func geolocateCity(city string) coordinates {
 	missingCities["hongkong"] = coordinates{22.319201099, 114.1696121}
 
 	re := regexp.MustCompile("-| ")
-	for i := 0; i < len(cities.Cities); i++ {
-		c := cities.Cities[i]
+    for _, c := range cities.Cities {
 		canonical := strings.ToLower(city)
 		canonical = re.ReplaceAllString(canonical, "")
 		if strings.ToLower(c.City) == canonical {
@@ -130,19 +146,27 @@ type jsonHandler struct {
 	geoipdb *geodb
 }
 
+type GeolocationJSON struct {
+    Ip          string `json:"ip"`
+    Cc          string `json:"cc"`
+    City        string `json:"city"`
+    Latitude    float64 `json:"lat"`
+    Longitude   float64 `json:"lon"`
+    Gateways    []string `json:"gateways"`
+}
+
 func (jh *jsonHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ipstr := getRemoteIP(req)
 	record := jh.geoipdb.getRecordForIP(ipstr)
-	closestGateway := jh.geoipdb.getClosestGateway(record.Location.Latitude, record.Location.Longitude)
+    sortedGateways := jh.geoipdb.sortGateways(record.Location.Latitude, record.Location.Longitude)
 
-	data := map[string]string{
-		"ip":   ipstr,
-		"cc":   record.Country.IsoCode,
-		"city": record.City.Names["en"],
-		"lat":  floatToString(record.Location.Latitude),
-		"lon":  floatToString(record.Location.Longitude),
-		"gw":   closestGateway.Location,
-		"gwip": closestGateway.IPAddress,
+	data := &GeolocationJSON{
+		ipstr,
+		record.Country.IsoCode,
+		record.City.Names["en"],
+		record.Location.Latitude,
+		record.Location.Longitude,
+        sortedGateways,
 	}
 
 	dataJSON, _ := json.Marshal(data)
