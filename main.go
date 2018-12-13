@@ -45,6 +45,50 @@ type geodb struct {
 	earth       *ellipsoid.Ellipsoid
 }
 
+func (g *geodb) getPointForLocation(lat float64, lon float64) *EuclideanPoint {
+	x, y, z := g.earth.ToECEF(lat, lon, 0)
+	p := NewEuclideanPoint(x, y, z)
+	return p
+}
+
+func (g *geodb) getClosestGateway(lat float64, lon float64) gateway {
+	t := g.getPointForLocation(lat, lon)
+	nn := g.GatewayTree.KNN(t, 1)[0]
+	p := [3]float64{nn.GetValue(0), nn.GetValue(1), nn.GetValue(2)}
+	closestGateway := g.GatewayMap[p]
+	return closestGateway
+}
+
+func (g *geodb) geolocateGateways(b *bonafide) {
+	g.GatewayMap = make(map[[3]float64]gateway)
+	gatewayPoints := make([]kdtree.Point, 0)
+
+	for i := 0; i < len(b.eip.Gateways); i++ {
+		gw := b.eip.Gateways[i]
+		coord := geolocateCity(gw.Location)
+		gw.Coordinates = coord
+		b.eip.Gateways[i] = gw
+
+		p := g.getPointForLocation(coord.Latitude, coord.Longitude)
+
+		gatewayPoints = append(gatewayPoints, *p)
+		var i [3]float64
+		copy(i[:], p.Vec)
+		g.GatewayMap[i] = gw
+	}
+	g.Gateways = b.eip.Gateways
+	g.GatewayTree = kdtree.NewKDTree(gatewayPoints)
+}
+
+func (g *geodb) getRecordForIP(ipstr string) *geoip2.City {
+	ip := net.ParseIP(ipstr)
+	record, err := g.db.City(ip)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return record
+}
+
 func geolocateCity(city string) coordinates {
 	// because some cities apparently are not good enough for the top 10k
 	missingCities := make(map[string]coordinates)
@@ -67,37 +111,6 @@ func geolocateCity(city string) coordinates {
 	return coordinates{0, 0}
 }
 
-func (g *geodb) geolocateGateways(b *bonafide) {
-	g.GatewayMap = make(map[[3]float64]gateway)
-	gatewayPoints := make([]kdtree.Point, 0)
-
-	for i := 0; i < len(b.eip.Gateways); i++ {
-		gw := b.eip.Gateways[i]
-		coord := geolocateCity(gw.Location)
-		gw.Coordinates = coord
-		b.eip.Gateways[i] = gw
-
-		x, y, z := g.earth.ToECEF(coord.Latitude, coord.Longitude, 0)
-
-		p := NewEuclideanPoint(x, y, z)
-		gatewayPoints = append(gatewayPoints, *p)
-		var i [3]float64
-		copy(i[:], p.Vec)
-		g.GatewayMap[i] = gw
-	}
-	g.Gateways = b.eip.Gateways
-	g.GatewayTree = kdtree.NewKDTree(gatewayPoints)
-}
-
-func (g *geodb) getRecordForIP(ipstr string) *geoip2.City {
-	ip := net.ParseIP(ipstr)
-	record, err := g.db.City(ip)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return record
-}
-
 type jsonHandler struct {
 	geoipdb *geodb
 }
@@ -105,13 +118,7 @@ type jsonHandler struct {
 func (jh *jsonHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ipstr := getRemoteIP(req)
 	record := jh.geoipdb.getRecordForIP(ipstr)
-
-	x, y, z := jh.geoipdb.earth.ToECEF(record.Location.Latitude, record.Location.Longitude, 0)
-
-	t := NewEuclideanPoint(x, y, z)
-	nn := jh.geoipdb.GatewayTree.KNN(t, 1)[0]
-	p := [3]float64{nn.GetValue(0), nn.GetValue(1), nn.GetValue(2)}
-	closestGateway := jh.geoipdb.GatewayMap[p]
+	closestGateway := jh.geoipdb.getClosestGateway(record.Location.Latitude, record.Location.Longitude)
 
 	data := map[string]string{
 		"ip":   ipstr,
