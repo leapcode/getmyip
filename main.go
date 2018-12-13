@@ -7,9 +7,14 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 
+	"github.com/StefanSchroeder/Golang-Ellipsoid/ellipsoid"
+	"github.com/hongshibao/go-kdtree"
 	"github.com/oschwald/geoip2-golang"
+	"github.com/tidwall/cities"
 )
 
 func floatToString(num float64) string {
@@ -33,7 +38,55 @@ func getRemoteIP(req *http.Request) string {
 }
 
 type geodb struct {
-	db *geoip2.Reader
+	db          *geoip2.Reader
+	Gateways    []gateway
+	GatewayTree *kdtree.KDTree
+	GatewayMap  map[[3]float64]gateway
+	earth       *ellipsoid.Ellipsoid
+}
+
+func geolocateCity(city string) coordinates {
+	// because some cities apparently are not good enough for the top 10k
+	missingCities := make(map[string]coordinates)
+	missingCities["hongkong"] = coordinates{22.319201099, 114.1696121}
+
+	re := regexp.MustCompile("-| ")
+	for i := 0; i < len(cities.Cities); i++ {
+		c := cities.Cities[i]
+		canonical := strings.ToLower(city)
+		canonical = re.ReplaceAllString(canonical, "")
+		if strings.ToLower(c.City) == canonical {
+			return coordinates{c.Latitude, c.Longitude}
+		}
+		v, ok := missingCities[canonical]
+		if ok == true {
+			return v
+		}
+
+	}
+	return coordinates{0, 0}
+}
+
+func (g *geodb) geolocateGateways(b *bonafide) {
+	g.GatewayMap = make(map[[3]float64]gateway)
+	gatewayPoints := make([]kdtree.Point, 0)
+
+	for i := 0; i < len(b.eip.Gateways); i++ {
+		gw := b.eip.Gateways[i]
+		coord := geolocateCity(gw.Location)
+		gw.Coordinates = coord
+		b.eip.Gateways[i] = gw
+
+		x, y, z := g.earth.ToECEF(coord.Latitude, coord.Longitude, 0)
+
+		p := NewEuclideanPoint(x, y, z)
+		gatewayPoints = append(gatewayPoints, *p)
+		var i [3]float64
+		copy(i[:], p.Vec)
+		g.GatewayMap[i] = gw
+	}
+	g.Gateways = b.eip.Gateways
+	g.GatewayTree = kdtree.NewKDTree(gatewayPoints)
 }
 
 func (g *geodb) getRecordForIP(ipstr string) *geoip2.City {
@@ -52,13 +105,24 @@ type jsonHandler struct {
 func (jh *jsonHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ipstr := getRemoteIP(req)
 	record := jh.geoipdb.getRecordForIP(ipstr)
+
+	x, y, z := jh.geoipdb.earth.ToECEF(record.Location.Latitude, record.Location.Longitude, 0)
+
+	t := NewEuclideanPoint(x, y, z)
+	nn := jh.geoipdb.GatewayTree.KNN(t, 1)[0]
+	p := [3]float64{nn.GetValue(0), nn.GetValue(1), nn.GetValue(2)}
+	closestGateway := jh.geoipdb.GatewayMap[p]
+
 	data := map[string]string{
 		"ip":   ipstr,
 		"cc":   record.Country.IsoCode,
 		"city": record.City.Names["en"],
 		"lat":  floatToString(record.Location.Latitude),
 		"lon":  floatToString(record.Location.Longitude),
+		"gw":   closestGateway.Location,
+		"gwip": closestGateway.IPAddress,
 	}
+
 	dataJSON, _ := json.Marshal(data)
 	fmt.Fprintf(w, string(dataJSON))
 }
@@ -90,7 +154,15 @@ func main() {
 	}
 	defer db.Close()
 
-	geoipdb := geodb{db}
+	earth := ellipsoid.Init("WGS84", ellipsoid.Degrees, ellipsoid.Meter, ellipsoid.LongitudeIsSymmetric, ellipsoid.BearingIsSymmetric)
+	geoipdb := geodb{db, nil, nil, nil, &earth}
+
+	log.Println("Seeding gateway list...")
+	bonafide := newBonafide()
+	bonafide.getGateways()
+
+	geoipdb.geolocateGateways(bonafide)
+	bonafide.listGateways()
 
 	mux := http.NewServeMux()
 	jh := &jsonHandler{&geoipdb}
