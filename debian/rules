@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+export DH_GOPKG = 0xacab.org/kali/getmyip
+export DH_GOLANG_EXCLUDES = vendor
+
+%:
+	dh $@ --with golang --with systemd --buildsystem golang
+
+override_dh_auto_test:
+
+override_dh_install:
+	rm -fr $(CURDIR)/debian/getmyip/usr/share/gocode
+	dh_install
+

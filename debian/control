@@ -1,0 +1,14 @@
+Source: leap-geolocation
+Section: net
+Priority: extra
+Maintainer: LEAP Encryption Access Project <debian@leap.se>
+Build-Depends: debhelper (>= 8.0.0), golang-go, dh-golang, dh-systemd
+Standards-Version: 3.9.4
+
+Package: leap-geolocation
+Architecture: all
+Depends: ${misc:Depends}, geoipupdate
+Description: LEAP's Geolocation service.
+ Geolocation service, part of a LEAP Provider.
+ It can be used to calculate distance to gateways for the VPN service.
+
