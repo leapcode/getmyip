@@ -67,28 +67,28 @@ func (g *geodb) getPointForLocation(lat float64, lon float64) *EuclideanPoint {
 }
 
 func (g *geodb) sortGateways(lat float64, lon float64) []string {
-    ret := make([]string, 0)
+	ret := make([]string, 0)
 	t := g.getPointForLocation(lat, lon)
 	nn := g.GatewayTree.KNN(t, len(g.Gateways))
-    for i:= 0; i<len(nn); i++ {
-        p := [3]float64{nn[i].GetValue(0), nn[i].GetValue(1), nn[i].GetValue(2)}
-        cityGateways := g.GatewayMap[p]
-        for _, gw := range cityGateways {
-            if !stringInSlice(gw.Host, ret) {
-                ret = append(ret, gw.Host)
-            }
-        }
-    }
-    return ret
+	for i := 0; i < len(nn); i++ {
+		p := [3]float64{nn[i].GetValue(0), nn[i].GetValue(1), nn[i].GetValue(2)}
+		cityGateways := g.GatewayMap[p]
+		for _, gw := range cityGateways {
+			if !stringInSlice(gw.Host, ret) {
+				ret = append(ret, gw.Host)
+			}
+		}
+	}
+	return ret
 }
 
-func stringInSlice(a string, list[]string) bool {
-    for _, b := range list {
-        if b == a {
-            return true
-        }
-    }
-    return false
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *geodb) geolocateGateways(b *bonafide) {
@@ -127,7 +127,7 @@ func geolocateCity(city string) coordinates {
 	missingCities["hongkong"] = coordinates{22.319201099, 114.1696121}
 
 	re := regexp.MustCompile("-| ")
-    for _, c := range cities.Cities {
+	for _, c := range cities.Cities {
 		canonical := strings.ToLower(city)
 		canonical = re.ReplaceAllString(canonical, "")
 		if strings.ToLower(c.City) == canonical {
@@ -147,18 +147,18 @@ type jsonHandler struct {
 }
 
 type GeolocationJSON struct {
-    Ip          string `json:"ip"`
-    Cc          string `json:"cc"`
-    City        string `json:"city"`
-    Latitude    float64 `json:"lat"`
-    Longitude   float64 `json:"lon"`
-    Gateways    []string `json:"gateways"`
+	Ip        string   `json:"ip"`
+	Cc        string   `json:"cc"`
+	City      string   `json:"city"`
+	Latitude  float64  `json:"lat"`
+	Longitude float64  `json:"lon"`
+	Gateways  []string `json:"gateways"`
 }
 
 func (jh *jsonHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ipstr := getRemoteIP(req)
 	record := jh.geoipdb.getRecordForIP(ipstr)
-    sortedGateways := jh.geoipdb.sortGateways(record.Location.Latitude, record.Location.Longitude)
+	sortedGateways := jh.geoipdb.sortGateways(record.Location.Latitude, record.Location.Longitude)
 
 	data := &GeolocationJSON{
 		ipstr,
@@ -166,7 +166,7 @@ func (jh *jsonHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		record.City.Names["en"],
 		record.Location.Latitude,
 		record.Location.Longitude,
-        sortedGateways,
+		sortedGateways,
 	}
 
 	dataJSON, _ := json.Marshal(data)
