@@ -22,6 +22,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -192,7 +193,22 @@ func (th *txtHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func main() {
 	var port = flag.Int("port", 9001, "port where the service listens on")
 	var dbpath = flag.String("geodb", "/var/lib/GeoIP/GeoLite2-City.mmdb", "path to the GeoLite2-City database")
+	var notls = flag.Bool("notls", false, "disable TLS on the service")
+	var key = flag.String("server_key", "", "path to the key file for TLS")
+	var crt = flag.String("server_crt", "", "path to the cert file for TLS")
 	flag.Parse()
+
+	if *notls == false {
+		if *key == "" || *crt == "" {
+			log.Fatal("you must provide -server_key and -server_crt parameters")
+		}
+		if _, err := os.Stat(*crt); os.IsNotExist(err) {
+			log.Fatal("path for crt file does not exist!")
+		}
+		if _, err := os.Stat(*key); os.IsNotExist(err) {
+			log.Fatal("path for key file does not exist!")
+		}
+	}
 
 	db, err := geoip2.Open(*dbpath)
 	if err != nil {
@@ -219,5 +235,15 @@ func main() {
 
 	log.Println("Started Geolocation Service")
 	log.Printf("Listening on port %v...\n", *port)
-	http.ListenAndServe(":"+strconv.Itoa(*port), mux)
+
+	pstr := ":" + strconv.Itoa(*port)
+	if *notls == true {
+		err = http.ListenAndServe(pstr, mux)
+	} else {
+		err = http.ListenAndServeTLS(pstr, *crt, *key, mux)
+	}
+
+	if err != nil {
+		log.Fatal("error in listenAndServe[TLS]: ", err)
+	}
 }

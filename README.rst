@@ -21,4 +21,10 @@ Usage
 	path to the GeoLite2-City database (default is "/var/lib/GeoIP/GeoLite2-City.mmdb")
 -port <port>
 	port where the service listens on (default is 9001)
+-notls
+	disable TLS on the service
+-server_crt string
+	path to the cert file for TLS
+-server_key string
+	path to the key file for TLS
 
