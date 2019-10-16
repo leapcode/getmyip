@@ -11,4 +11,4 @@ FROM debian:stable
 COPY --from=build /usr/share/doc/geoipupdate/examples/GeoIP.conf.default /etc/GeoIP.conf
 COPY --from=build /go/bin/getmyip /usr/local/bin/getmyip
 
-ENTRYPOINT ["/usr/local/bin/getmyip -notls"]
+ENTRYPOINT ["/usr/local/bin/getmyip", "-notls"]
