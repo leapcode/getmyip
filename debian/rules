@@ -4,7 +4,7 @@
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
 
-export DH_GOPKG = 0xacab.org/kali/getmyip
+export DH_GOPKG = 0xacab.org/leap/getmyip
 export DH_GOLANG_EXCLUDES = vendor
 
 %:
