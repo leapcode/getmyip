@@ -20,12 +20,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/StefanSchroeder/Golang-Ellipsoid/ellipsoid"
 	"github.com/hongshibao/go-kdtree"
@@ -55,6 +57,7 @@ func getRemoteIP(req *http.Request) string {
 
 type geodb struct {
 	db          *geoip2.Reader
+	Forbidden   []string
 	Gateways    []gateway
 	GatewayTree *kdtree.KDTree
 	GatewayMap  map[[3]float64][]gateway
@@ -67,6 +70,15 @@ func (g *geodb) getPointForLocation(lat float64, lon float64) *EuclideanPoint {
 	return p
 }
 
+func randomizeGateways(gws []gateway) []gateway {
+	dest := make([]gateway, len(gws))
+	perm := rand.Perm(len(gws))
+	for i, v := range perm {
+		dest[v] = gws[i]
+	}
+	return dest
+}
+
 func (g *geodb) sortGateways(lat float64, lon float64) []string {
 	ret := make([]string, 0)
 	t := g.getPointForLocation(lat, lon)
@@ -74,9 +86,14 @@ func (g *geodb) sortGateways(lat float64, lon float64) []string {
 	for i := 0; i < len(nn); i++ {
 		p := [3]float64{nn[i].GetValue(0), nn[i].GetValue(1), nn[i].GetValue(2)}
 		cityGateways := g.GatewayMap[p]
+		if len(cityGateways) > 1 {
+			cityGateways = randomizeGateways(cityGateways)
+		}
 		for _, gw := range cityGateways {
-			if !stringInSlice(gw.Host, ret) {
-				ret = append(ret, gw.Host)
+			if !stringInSlice(gw.Host, g.Forbidden) {
+				if !stringInSlice(gw.Host, ret) {
+					ret = append(ret, gw.Host)
+				}
 			}
 		}
 	}
@@ -191,12 +208,17 @@ func (th *txtHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	var port = flag.Int("port", 9001, "port where the service listens on")
 	var dbpath = flag.String("geodb", "/var/lib/GeoIP/GeoLite2-City.mmdb", "path to the GeoLite2-City database")
 	var notls = flag.Bool("notls", false, "disable TLS on the service")
 	var key = flag.String("server_key", "", "path to the key file for TLS")
 	var crt = flag.String("server_crt", "", "path to the cert file for TLS")
+	var forbidstr = flag.String("forbid", "", "comma-separated list of forbidden gateways")
 	flag.Parse()
+
+	forbidden := strings.Split(*forbidstr, ",")
+	fmt.Println("Forbidden gateways:", forbidden)
 
 	if *notls == false {
 		if *key == "" || *crt == "" {
@@ -217,7 +239,7 @@ func main() {
 	defer db.Close()
 
 	earth := ellipsoid.Init("WGS84", ellipsoid.Degrees, ellipsoid.Meter, ellipsoid.LongitudeIsSymmetric, ellipsoid.BearingIsSymmetric)
-	geoipdb := geodb{db, nil, nil, nil, &earth}
+	geoipdb := geodb{db, forbidden, nil, nil, nil, &earth}
 
 	log.Println("Seeding gateway list...")
 	bonafide := newBonafide()
