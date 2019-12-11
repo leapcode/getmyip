@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 8.0.0), golang-go, dh-golang, dh-systemd
 Standards-Version: 3.9.4
 
 Package: leap-geolocation
-Architecture: all
+Architecture: any
 Depends: ${misc:Depends}, geoipupdate
 Description: LEAP's Geolocation service.
  Geolocation service, part of a LEAP Provider.
