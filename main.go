@@ -32,6 +32,8 @@ import (
 	"github.com/StefanSchroeder/Golang-Ellipsoid/ellipsoid"
 	"github.com/hongshibao/go-kdtree"
 	"github.com/oschwald/geoip2-golang"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tidwall/cities"
 )
 
@@ -178,6 +180,8 @@ func (jh *jsonHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	record := jh.geoipdb.getRecordForIP(ipstr)
 	sortedGateways := jh.geoipdb.sortGateways(record.Location.Latitude, record.Location.Longitude)
 
+	hitsPerCountry.With(prometheus.Labels{"country": record.Country.IsoCode}).Inc()
+
 	data := &GeolocationJSON{
 		ipstr,
 		record.Country.IsoCode,
@@ -210,6 +214,7 @@ func (th *txtHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	var port = flag.Int("port", 9001, "port where the service listens on")
+	var metricsPort = flag.Int("metricsPort", 9002, "port where the metrics server listens on")
 	var dbpath = flag.String("geodb", "/var/lib/GeoIP/GeoLite2-City.mmdb", "path to the GeoLite2-City database")
 	var notls = flag.Bool("notls", false, "disable TLS on the service")
 	var key = flag.String("server_key", "", "path to the key file for TLS")
@@ -255,6 +260,17 @@ func main() {
 	th := &txtHandler{&geoipdb}
 	mux.Handle("/", th)
 
+	mtr := http.NewServeMux()
+	mtr.Handle("/metrics", promhttp.Handler())
+
+	/* prometheus metrics */
+	go func() {
+		pstr := ":" + strconv.Itoa(*metricsPort)
+		log.Println("/metrics endpoint listening in port", *metricsPort)
+		log.Fatal(http.ListenAndServe(pstr, mtr))
+	}()
+
+	/* geolocation api */
 	log.Println("Started Geolocation Service")
 	log.Printf("Listening on port %v...\n", *port)
 

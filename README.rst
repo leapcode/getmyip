@@ -14,6 +14,8 @@ You can use ``geoipupdate`` to download MaxMind's City database::
     sudo cp /usr/share/doc/geoipupdate/examples/GeoIP.conf.default /etc/GeoIP.conf
     sudo geoipupdate -v
 
+(note: this service now requires a license key)
+
 Usage
 -----------------------
 
